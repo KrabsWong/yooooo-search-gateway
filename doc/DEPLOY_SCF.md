@@ -6,16 +6,36 @@ The gateway runs as one SCF function behind API Gateway. Provider keys are funct
 
 Include `package.json`, `src/` and this `doc/` folder in the function zip. No `npm install` is needed: the service uses only Node built-ins. Select the SCF runtime **Nodejs20.19** (the newest Node version in SCF proper, and the one recommended by its migration guide) and set the handler to `src/scf.js.main_handler`. The code also runs on Node 22/24 if you deploy through SCF Custom Runtime or a container image; no code change is required. CloudBase offers newer managed Node runtimes but is a different product from SCF proper.
 
-## 2. Function environment
+## 2. Function environment (secrets live here, never in code)
 
-Set these as SCF environment variables (use the platform secret mechanism for the provider key where available):
+All credentials are read from the SCF function's environment variables at runtime. Nothing is hardcoded in `src/`, and no `.env` file should be packed into the zip.
 
-- `GATEWAY_TOKEN` — the bearer token the MCP service will present.
-- `PROVIDER_DEEPSEEK_API_KEY` — key for the `deepseek` provider. This is the only form: every provider uses `PROVIDER_<ID>_API_KEY`.
-- `PROVIDER_DEEPSEEK_BASE_URL` — optional endpoint override for that provider.
-- `PROVIDER_ORDER` — optional `auto` order, default `deepseek` (legacy alias `SEARCH_PROVIDER_ORDER` is still accepted).
+| Variable | Required | Meaning |
+| --- | --- | --- |
+| `GATEWAY_TOKEN` | yes | Bearer token the MCP client presents. Accepts a comma-separated list (`GATEWAY_TOKENS`) for rotation. |
+| `PROVIDER_DEEPSEEK_API_KEY` | yes | Key for the `deepseek` provider. Every provider follows `PROVIDER_<ID>_API_KEY`. |
+| `PROVIDER_DEEPSEEK_BASE_URL` | no | Endpoint override for that provider; defaults to `https://api.deepseek.com`. |
+| `PROVIDER_ORDER` | no | `auto` order, default `deepseek` (legacy alias `SEARCH_PROVIDER_ORDER` still accepted). |
+| `GATEWAY_PROVIDERS` | no | Optional allowlist of provider ids for all tokens. |
 
-Do not put these values in API Gateway configuration, source files or logs.
+### Setting them in the SCF console
+
+1. Open the function in the SCF console → **Function configuration** → **Environment variables**.
+2. Add each variable from the table above. Use the platform's secret/KMS integration for `PROVIDER_DEEPSEEK_API_KEY` and `GATEWAY_TOKEN` if available in your account; otherwise store them as encrypted environment variables (SCF encrypts values at rest).
+3. Keep the values out of API Gateway configuration, source files, test fixtures and logs. Do not commit them to either repository.
+4. After changing an environment variable, publish a new version and move the alias. Environment variables are captured per version, and provisioned concurrency keeps the old version's environment until the alias moves.
+
+### Local development
+
+For local runs, export the same variables in the shell before `npm run dev` (the `.gitignore` excludes `.env*` so local files are never committed):
+
+```sh
+export GATEWAY_TOKEN=local-token
+export PROVIDER_DEEPSEEK_API_KEY=sk-...
+npm run dev
+```
+
+Verification: `curl http://localhost:3000/health` should list only providers with a configured key. `/health` never prints any token or provider key.
 
 ## 3. API Gateway
 

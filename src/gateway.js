@@ -8,11 +8,6 @@ const FAILOVER = new Set(['rate_limit', 'timeout', 'transport', 'fetch_failed'])
 
 export function handleProvider(body = {}, ctx, config) {
   const providers = listProviders(config);
-  if (body?.id) {
-    const provider = providers.find((item) => item.id === body.id);
-    if (!provider) throw gatewayError('invalid_params', `Unknown provider: ${body.id}`);
-    return { provider };
-  }
   return { providers, default: providers.find((item) => item.enabled)?.id || null };
 }
 

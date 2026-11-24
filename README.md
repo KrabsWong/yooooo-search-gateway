@@ -6,6 +6,69 @@ A provider-agnostic HTTP search gateway for the `planning-search-mcp` client. Pr
 
 Provider differences stop at this service. The client never sees vendor-specific tool names, headers, model ids or response fields. Adding a backend means adding an adapter and a secret here; no app rebuild, agent config change or prompt change is needed. See `docs/SOLUTION_SEARCH_MCP.md` in the main project for the full architecture.
 
+## Architecture
+
+```mermaid
+flowchart TB
+    subgraph client[Client side - local or research server]
+        A[OpenCode / Codex agent]
+        M[planning-search-mcp<br/>tools: search, fetch, providers]
+        S[App Settings<br/>gateway URL + token]
+        A <-->|stdio MCP| M
+        S -.->|credentials file or env| M
+    end
+
+    subgraph edge[Tencent Cloud]
+        GW[API Gateway<br/>HTTPS + Bearer token]
+        F[SCF function - src/scf.js<br/>main_handler]
+        W[Timer trigger - 5 min warm-up]
+        P[Provisioned concurrency - 1]
+        GW --> F
+        W -->|non-HTTP event| F
+        P --> F
+    end
+
+    subgraph gateway[Inside the SCF function]
+        H[src/index.js<br/>routing + auth]
+        G[src/gateway.js<br/>selection, failover, composition]
+        R[src/providers/registry.js<br/>capabilities, no models exposed]
+        D[DeepSeek adapter<br/>Messages + web tools]
+        N[src/normalize.js<br/>canonical sources + truncation]
+        H --> G --> R --> D --> N
+    end
+
+    M -->|HTTPS POST /v1/*| GW
+    D -->|"/anthropic/v1/messages<br/>deepseek_web_search / deepseek_read_url"| DS[DeepSeek model API]
+    DS -->|web_search_tool_result<br/>web_fetch_tool_result + text| D
+```
+
+- The MCP client owns only the gateway URL and token; all provider keys stay in SCF environment variables.
+- `search` and `fetch` go through model-native web tools on the provider, never standalone Search & Fetch REST endpoints.
+- Responses are normalized into one canonical shape; provider identity comes from `/v1/provider` and powers the MCP `providers` tool.
+
+```mermaid
+sequenceDiagram
+    participant A as Agent
+    participant M as planning-search-mcp
+    participant GW as API Gateway + SCF
+    participant D as DeepSeek model API
+
+    A->>M: tools/call search(query) / fetch(url) / providers
+    M->>GW: POST /v1/* with Bearer token
+    GW->>GW: authorize, route, pick provider by auto
+    alt search
+        GW->>D: /anthropic/v1/messages + deepseek_web_search
+        D-->>GW: web_search_tool_result + text answer
+    else fetch
+        GW->>D: /anthropic/v1/messages + deepseek_read_url
+        D-->>GW: web_fetch_tool_result + model text + citations
+    else providers
+        GW-->>M: provider ids from registry
+    end
+    GW-->>M: canonical JSON, model_generated_content warning
+    M-->>A: tool result
+```
+
 ## HTTP API
 
 All endpoints answer JSON. All `/v1/*` endpoints require `Authorization: Bearer <GATEWAY_TOKEN>`.
@@ -14,7 +77,6 @@ All endpoints answer JSON. All `/v1/*` endpoints require `Authorization: Bearer 
 | --- | --- | --- | --- |
 | `GET` | `/health` | — | `{ "ok": true, "providers": ["deepseek"] }` |
 | `POST` | `/v1/provider` | `{}` | `{ "providers": [{ "id", "name", "enabled" }], "default" }` |
-| `POST` | `/v1/provider` | `{ "id": "deepseek" }` | `{ "provider": { "id", "name", "enabled" } }` |
 | `POST` | `/v1/search` | `{ "provider"?, "query", "count"?, "need_content"?, "ori_question"? }` | `{ "provider", "sources": [...], "answer"?, "warnings": [] }` |
 | `POST` | `/v1/fetch` | `{ "provider"?, "url" }` | `{ "provider", "page": { "url", "title", "content", "citations" }, "warnings": [] }` |
 
