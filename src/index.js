@@ -6,6 +6,7 @@ import { loadConfig, enabledProviderIds } from './config.js';
 import { codeFor, errorBody, statusFor } from './errors.js';
 import { handleFetch, handleProvider, handleSearch } from './gateway.js';
 import { readJsonBody, sendJson } from './http.js';
+import { handleMcp } from './mcp.js';
 
 const ROUTES = new Set(['/v1/provider', '/v1/search', '/v1/fetch']);
 
@@ -14,6 +15,7 @@ export function normalizePath(path = '') {
   const marker = clean.indexOf('/v1/');
   if (marker >= 0) return clean.slice(marker);
   if (clean.endsWith('/health')) return '/health';
+  if (clean.endsWith('/mcp')) return '/mcp';
   return clean;
 }
 
@@ -25,6 +27,20 @@ export async function handleApi(request, config, deps = {}) {
   const { method, path, headers = {}, body = {} } = request;
   const route = normalizePath(path);
   try {
+    if (route === '/mcp') {
+      if (method !== 'POST') {
+        return json(405, { error: { code: 'invalid_params', message: 'Method not allowed.' } });
+      }
+      const ctx = authorize(headers, config);
+      const messages = Array.isArray(body) ? body : [body];
+      const responses = [];
+      for (const message of messages) {
+        const result = await handleMcp(message, ctx, config);
+        if (!result.notification) responses.push(result);
+      }
+      if (responses.length === 0) return { status: 202, body: null };
+      return json(200, Array.isArray(body) ? responses : responses[0]);
+    }
     if (method === 'GET' && route === '/health') {
       return json(200, { ok: true, providers: enabledProviderIds(config) });
     }

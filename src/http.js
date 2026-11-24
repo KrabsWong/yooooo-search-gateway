@@ -24,6 +24,11 @@ export async function readJsonBody(stream, maxBytes) {
 }
 
 export function sendJson(response, status, body) {
+  if (body === null || body === undefined) {
+    response.writeHead(status);
+    response.end();
+    return;
+  }
   const text = JSON.stringify(body);
   response.writeHead(status, {
     'content-type': 'application/json; charset=utf-8',

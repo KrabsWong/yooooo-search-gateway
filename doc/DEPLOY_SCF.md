@@ -39,7 +39,7 @@ Verification: `curl http://localhost:3000/health` should list only providers wit
 
 ## 3. API Gateway
 
-Create POST routes for `/v1/search`, `/v1/fetch` and `/v1/provider`, and a GET route for `/health`. Forward the `Authorization` header unchanged. The handler accepts a stage prefix, so `/release/v1/search` works without rewriting.
+Create a POST route for `/mcp` (the remote MCP endpoint agents connect to), POST routes for `/v1/search`, `/v1/fetch` and `/v1/provider`, and a GET route for `/health`. Forward the `Authorization` header unchanged. The handler accepts a stage prefix, so `/release/mcp` and `/release/v1/search` work without rewriting. Agents are configured with the `/mcp` URL, for example `https://<api-gateway-host>/release/mcp`.
 
 Synchronous API Gateway invocation does not retry errors. The MCP client maps the returned error code to its own tool-error contract and applies bounded retries.
 
@@ -56,13 +56,13 @@ Monitor `Coldstart` duration in SCF logs, provisioned-concurrency utilization in
 
 ## 5. Client configuration
 
-The MCP service keeps only the gateway URL and token in `~/.config/planning-search/credentials.json`:
+The app keeps only the gateway URL and token in `~/.config/planning-search/credentials.json`:
 
 ```jsonc
-{ "gateway_url": "https://<api-gateway-host>/", "token": "gateway-token" }
+{ "gateway_url": "https://<api-gateway-host>/release/mcp", "token": "gateway-token" }
 ```
 
-`SEARCH_GATEWAY_URL` and `SEARCH_GATEWAY_TOKEN` override the file on servers. No provider key is present on the client.
+`SEARCH_GATEWAY_URL` and `SEARCH_GATEWAY_TOKEN` override the file on servers. The app passes them to Codex/OpenCode, which connect to the remote `/mcp` endpoint directly; no local MCP binary is installed. No provider key is present on the client.
 
 ## 6. Cost controls
 

@@ -1,6 +1,6 @@
 # yooooo-search-gateway
 
-A provider-agnostic HTTP search gateway for the `planning-search-mcp` client. Provider adapters, provider keys, failover, quotas and response normalization live here. The gateway exposes three stable HTTP methods (`search`, `fetch`, `provider`); the MCP client wraps them as `search`, `fetch` and `providers` tools.
+A provider-agnostic search gateway with a **remote Streamable HTTP MCP endpoint**. Agents (OpenCode / Codex) connect directly — there is no local MCP binary to install. Provider adapters, provider keys, failover, quotas and response normalization all live here.
 
 ## Design invariant
 
@@ -10,12 +10,10 @@ Provider differences stop at this service. The client never sees vendor-specific
 
 ```mermaid
 flowchart TB
-    subgraph client[Client side - local or research server]
-        A[OpenCode / Codex agent]
-        M[planning-search-mcp<br/>tools: search, fetch, providers]
+    subgraph client[Client side - nothing installed]
+        A[OpenCode / Codex agent<br/>MCP tools: search, fetch, providers]
         S[App Settings<br/>gateway URL + token]
-        A <-->|stdio MCP| M
-        S -.->|credentials file or env| M
+        S -.->|injected as env into agent| A
     end
 
     subgraph edge[Tencent Cloud]
@@ -30,32 +28,31 @@ flowchart TB
 
     subgraph gateway[Inside the SCF function]
         H[src/index.js<br/>routing + auth]
+        M[src/mcp.js<br/>Streamable HTTP MCP<br/>tools: search, fetch, providers]
         G[src/gateway.js<br/>selection, failover, composition]
         R[src/providers/registry.js<br/>capabilities, no models exposed]
         D[DeepSeek adapter<br/>Messages + web tools]
         N[src/normalize.js<br/>canonical sources + truncation]
-        H --> G --> R --> D --> N
+        H --> M --> G --> R --> D --> N
     end
 
-    M -->|HTTPS POST /v1/*| GW
+    A -->|"POST /mcp<br/>initialize / tools/list / tools/call"| GW
     D -->|"/anthropic/v1/messages<br/>deepseek_web_search / deepseek_read_url"| DS[DeepSeek model API]
     DS -->|web_search_tool_result<br/>web_fetch_tool_result + text| D
 ```
 
-- The MCP client owns only the gateway URL and token; all provider keys stay in SCF environment variables.
+- The agent owns only the gateway URL and token; all provider keys stay in SCF environment variables.
 - `search` and `fetch` go through model-native web tools on the provider, never standalone Search & Fetch REST endpoints.
-- Responses are normalized into one canonical shape; provider identity comes from `/v1/provider` and powers the MCP `providers` tool.
+- Responses are normalized into one canonical shape; the MCP `providers` tool returns provider ids from the registry.
 
 ```mermaid
 sequenceDiagram
     participant A as Agent
-    participant M as planning-search-mcp
-    participant GW as API Gateway + SCF
+    participant GW as API Gateway + SCF /mcp
     participant D as DeepSeek model API
 
-    A->>M: tools/call search(query) / fetch(url) / providers
-    M->>GW: POST /v1/* with Bearer token
-    GW->>GW: authorize, route, pick provider by auto
+    A->>GW: POST /mcp initialize -> tools/list -> tools/call
+    GW->>GW: Bearer auth, MCP dispatch, pick provider by auto
     alt search
         GW->>D: /anthropic/v1/messages + deepseek_web_search
         D-->>GW: web_search_tool_result + text answer
@@ -63,10 +60,9 @@ sequenceDiagram
         GW->>D: /anthropic/v1/messages + deepseek_read_url
         D-->>GW: web_fetch_tool_result + model text + citations
     else providers
-        GW-->>M: provider ids from registry
+        GW-->>A: provider ids from registry
     end
-    GW-->>M: canonical JSON, model_generated_content warning
-    M-->>A: tool result
+    GW-->>A: MCP tool result with canonical JSON + model_generated_content warning
 ```
 
 ## HTTP API
@@ -76,6 +72,7 @@ All endpoints answer JSON. All `/v1/*` endpoints require `Authorization: Bearer 
 | Method | Path | Body | Response |
 | --- | --- | --- | --- |
 | `GET` | `/health` | — | `{ "ok": true, "providers": ["deepseek"] }` |
+| `POST` | `/mcp` | JSON-RPC message (or batch) | MCP JSON-RPC response; notifications get `202` with no body |
 | `POST` | `/v1/provider` | `{}` | `{ "providers": [{ "id", "name", "enabled" }], "default" }` |
 | `POST` | `/v1/search` | `{ "provider"?, "query", "count"?, "need_content"?, "ori_question"? }` | `{ "provider", "sources": [...], "answer"?, "warnings": [] }` |
 | `POST` | `/v1/fetch` | `{ "provider"?, "url" }` | `{ "provider", "page": { "url", "title", "content", "citations" }, "warnings": [] }` |
