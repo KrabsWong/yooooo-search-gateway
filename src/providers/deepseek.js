@@ -4,12 +4,15 @@ import { gatewayError } from '../errors.js';
 import { requestJson } from '../http.js';
 import { normalizeSources, truncate } from '../normalize.js';
 
+const DEFAULT_BASE_URL = 'https://api.deepseek.com';
+
 function post(path, body, config, deps) {
-  return requestJson(`${config.deepseekBaseUrl}${path}`, {
+  const settings = config.providers.deepseek || {};
+  return requestJson(`${settings.baseUrl || DEFAULT_BASE_URL}${path}`, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
-      authorization: `Bearer ${config.deepseekApiKey}`,
+      authorization: `Bearer ${settings.apiKey || ''}`,
     },
     body,
     timeoutMs: config.timeoutMs,

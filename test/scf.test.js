@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 process.env.GATEWAY_TOKEN = 'scf-token';
-process.env.DEEPSEEK_API_KEY = 'scf-provider-key';
+process.env.PROVIDER_DEEPSEEK_API_KEY = 'scf-provider-key';
 const { main_handler } = await import('../src/scf.js');
 
 test('timer triggers are answered without calling any provider', async () => {

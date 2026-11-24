@@ -3,7 +3,7 @@ import test from 'node:test';
 import { loadConfig } from '../src/config.js';
 import { handleFetch, handleProvider, handleSearch } from '../src/gateway.js';
 
-const config = loadConfig({ GATEWAY_TOKEN: 'token', DEEPSEEK_API_KEY: 'provider-key' });
+const config = loadConfig({ GATEWAY_TOKEN: 'token', PROVIDER_DEEPSEEK_API_KEY: 'provider-key' });
 
 function source(url = 'https://example.com/a', content = 'snippet') {
   return { url, title: 'Article', content, published_at: null, authority: null, score: null, site_name: null };

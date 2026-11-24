@@ -3,7 +3,7 @@ import test from 'node:test';
 import { handleApi, normalizePath } from '../src/index.js';
 import { loadConfig } from '../src/config.js';
 
-const config = loadConfig({ GATEWAY_TOKEN: 'token', DEEPSEEK_API_KEY: 'provider-key' });
+const config = loadConfig({ GATEWAY_TOKEN: 'token', PROVIDER_DEEPSEEK_API_KEY: 'provider-key' });
 
 test('health needs no token and strips API Gateway stage prefixes', () => {
   assert.equal(normalizePath('/release/v1/search'), '/v1/search');

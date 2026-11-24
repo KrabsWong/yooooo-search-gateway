@@ -9,7 +9,7 @@ const CATALOG = [
     capabilities: ['search', 'fetch'],
     models: [],
     default_model: null,
-    enabled: (config) => Boolean(config.deepseekApiKey),
+    enabled: (config) => Boolean(config.providers.deepseek?.apiKey),
     adapter: deepseekProvider,
   },
   {

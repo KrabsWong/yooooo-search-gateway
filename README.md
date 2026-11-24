@@ -27,7 +27,7 @@ Errors use stable codes in `{ "error": { "code", "message" } }`: `auth`, `invali
 
 | id | capabilities | status |
 | --- | --- | --- |
-| `deepseek` | `search`, `fetch` | enabled when `DEEPSEEK_API_KEY` is set |
+| `deepseek` | `search`, `fetch` | enabled when its provider settings are configured |
 | `tencent-tokenplan` | `search` | planned: Anthropic Messages `web_search_20250305`; fetch composed with DeepSeek |
 | `opencode-go` | `model`, `synthesis` | planned: no verified native search endpoint |
 
@@ -39,15 +39,18 @@ Environment variables only; no secret is written to a file.
 | --- | --- |
 | `GATEWAY_TOKEN` or `GATEWAY_TOKENS` | required comma-separated bearer tokens for `/v1/*` |
 | `GATEWAY_PROVIDERS` | optional provider id allowlist for all tokens |
-| `DEEPSEEK_API_KEY` | provider key for the DeepSeek native Search & Fetch API |
-| `DEEPSEEK_BASE_URL` | optional; defaults to `https://api.deepseek.com` |
-| `SEARCH_PROVIDER_ORDER` | `auto` order; defaults to `deepseek` |
+| `PROVIDER_CONFIG` | JSON map of provider id → `{ "apiKey", "baseUrl" }`; preferred when configuring several providers |
+| `PROVIDER_<ID>_API_KEY` | convention form, e.g. `PROVIDER_DEEPSEEK_API_KEY` |
+| `PROVIDER_<ID>_BASE_URL` | optional, e.g. `PROVIDER_DEEPSEEK_BASE_URL` |
+| `PROVIDER_ORDER` | `auto` order; defaults to `deepseek` (legacy alias `SEARCH_PROVIDER_ORDER` still accepted) |
+
+No top-level variable names a specific vendor. Adding a backend means giving it an id and adding settings under that id; the gateway code and client contract stay unchanged.
 | `PORT` | local dev port; defaults to `3000` |
 
 ## Run and test
 
 ```sh
-GATEWAY_TOKEN=local-token DEEPSEEK_API_KEY=sk-... npm run dev
+GATEWAY_TOKEN=local-token PROVIDER_DEEPSEEK_API_KEY=sk-... npm run dev
 npm test
 ```
 

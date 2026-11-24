@@ -6,7 +6,7 @@ import { loadConfig } from '../src/config.js';
 const config = loadConfig({
   GATEWAY_TOKEN: 'first-token,second-token',
   GATEWAY_PROVIDERS: 'deepseek',
-  DEEPSEEK_API_KEY: 'provider-key',
+  PROVIDER_DEEPSEEK_API_KEY: 'provider-key',
 });
 
 test('accepts any configured token and returns the provider allowlist', () => {
@@ -20,6 +20,6 @@ test('rejects missing and invalid tokens', () => {
 });
 
 test('fails closed when no gateway token is configured', () => {
-  const open = loadConfig({ DEEPSEEK_API_KEY: 'provider-key' });
+  const open = loadConfig({ PROVIDER_DEEPSEEK_API_KEY: 'provider-key' });
   assert.throws(() => authorize({ authorization: 'Bearer anything' }, open), /not configured/);
 });

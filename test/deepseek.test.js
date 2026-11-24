@@ -3,7 +3,7 @@ import test from 'node:test';
 import { loadConfig } from '../src/config.js';
 import { deepseekProvider } from '../src/providers/deepseek.js';
 
-const config = loadConfig({ DEEPSEEK_API_KEY: 'provider-key' });
+const config = loadConfig({ PROVIDER_DEEPSEEK_API_KEY: 'provider-key' });
 
 function fakeFetch(response) {
   return async (url, options) => {
