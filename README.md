@@ -1,6 +1,6 @@
 # yooooo-search-gateway
 
-A provider-agnostic HTTP search gateway for the `planning-search-mcp` client. Provider adapters, provider keys, failover, quotas and response normalization live here. The MCP client and the research agent see only three stable methods: `search`, `fetch` and `provider`.
+A provider-agnostic HTTP search gateway for the `planning-search-mcp` client. Provider adapters, provider keys, failover, quotas and response normalization live here. The gateway exposes three stable HTTP methods (`search`, `fetch`, `provider`); the MCP client wraps them as `search`, `fetch` and `providers` tools.
 
 ## Design invariant
 
@@ -13,9 +13,10 @@ All endpoints answer JSON. All `/v1/*` endpoints require `Authorization: Bearer 
 | Method | Path | Body | Response |
 | --- | --- | --- | --- |
 | `GET` | `/health` | — | `{ "ok": true, "providers": ["deepseek"] }` |
-| `POST` | `/v1/provider` | `{}` or `{ "id": "deepseek" }` | provider identity: `{ "id", "name", "enabled" }` |
+| `POST` | `/v1/provider` | `{}` | `{ "providers": [{ "id", "name", "enabled" }], "default" }` |
+| `POST` | `/v1/provider` | `{ "id": "deepseek" }` | `{ "provider": { "id", "name", "enabled" } }` |
 | `POST` | `/v1/search` | `{ "provider"?, "query", "count"?, "need_content"?, "ori_question"? }` | `{ "provider", "sources": [...], "answer"?, "warnings": [] }` |
-| `POST` | `/v1/fetch` | `{ "provider"?, "url" }` | `{ "provider", "page": { "url", "title", "content" }, "warnings": [] }` |
+| `POST` | `/v1/fetch` | `{ "provider"?, "url" }` | `{ "provider", "page": { "url", "title", "content", "citations" }, "warnings": [] }` |
 
 `provider` is optional and defaults to `auto`. API Gateway stage prefixes such as `/release/v1/search` are accepted.
 
