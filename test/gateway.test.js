@@ -9,14 +9,13 @@ function source(url = 'https://example.com/a', content = 'snippet') {
   return { url, title: 'Article', content, published_at: null, authority: null, score: null, site_name: null };
 }
 
-test('provider metadata exposes capabilities without leaking adapters', () => {
+test('provider info exposes identity only, never models or capabilities', () => {
   const result = handleProvider({}, { providers: [] }, config);
   const deepseek = result.providers.find((provider) => provider.id === 'deepseek');
+  assert.deepEqual(Object.keys(deepseek).sort(), ['enabled', 'id', 'name']);
   assert.equal(deepseek.enabled, true);
-  assert.deepEqual(deepseek.capabilities, ['search', 'fetch']);
   const tokenplan = result.providers.find((provider) => provider.id === 'tencent-tokenplan');
   assert.equal(tokenplan.enabled, false);
-  assert.ok(tokenplan.capabilities.includes('search'));
   assert.equal(result.default, 'deepseek');
 });
 

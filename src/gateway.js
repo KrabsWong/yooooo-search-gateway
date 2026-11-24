@@ -86,6 +86,7 @@ export async function handleSearch(body = {}, ctx, config, deps = {}) {
         provider: adapter.id,
         sources: result.sources,
         warnings: result.warnings || [],
+        ...(result.answer ? { answer: result.answer } : {}),
       }, config.maxResponseBytes);
     } catch (error) {
       if (FAILOVER.has(error.code)) {
@@ -104,8 +105,8 @@ export async function handleFetch(body = {}, ctx, config, deps = {}) {
   let last;
   for (const adapter of adapters) {
     try {
-      const page = await adapter.fetch(body.url, config, deps);
-      return { provider: adapter.id, page, warnings: [] };
+      const { warnings = [], ...page } = await adapter.fetch(body.url, config, deps);
+      return { provider: adapter.id, page, warnings };
     } catch (error) {
       if (FAILOVER.has(error.code)) {
         last = error;

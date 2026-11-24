@@ -11,8 +11,8 @@ Include `package.json`, `src/` and this `doc/` folder in the function zip. No `n
 Set these as SCF environment variables (use the platform secret mechanism for the provider key where available):
 
 - `GATEWAY_TOKEN` — the bearer token the MCP service will present.
-- `PROVIDER_DEEPSEEK_API_KEY` — key for the `deepseek` provider, following the generic `PROVIDER_<ID>_API_KEY` convention. Alternatively set `PROVIDER_CONFIG` to a JSON map of provider ids to `{ "apiKey", "baseUrl" }`.
-- `PROVIDER_DEEPSEEK_BASE_URL` — optional override for that provider.
+- `PROVIDER_DEEPSEEK_API_KEY` — key for the `deepseek` provider. This is the only form: every provider uses `PROVIDER_<ID>_API_KEY`.
+- `PROVIDER_DEEPSEEK_BASE_URL` — optional endpoint override for that provider.
 - `PROVIDER_ORDER` — optional `auto` order, default `deepseek` (legacy alias `SEARCH_PROVIDER_ORDER` is still accepted).
 
 Do not put these values in API Gateway configuration, source files or logs.

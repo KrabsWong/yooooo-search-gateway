@@ -37,7 +37,7 @@ export function normalizeSources(items, config, warnings = []) {
       url,
       title: typeof item.title === 'string' ? item.title : '',
       content: truncate(content, config.maxSourceChars),
-      published_at: normalizePublishedAt(item.date || item.published_at, warnings),
+      published_at: normalizePublishedAt(item.date || item.published_at || item.page_age, warnings),
       authority,
       score: rerank,
       site_name: typeof item.site_name === 'string' ? item.site_name : null,

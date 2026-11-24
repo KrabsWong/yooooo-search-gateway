@@ -13,23 +13,27 @@ All endpoints answer JSON. All `/v1/*` endpoints require `Authorization: Bearer 
 | Method | Path | Body | Response |
 | --- | --- | --- | --- |
 | `GET` | `/health` | — | `{ "ok": true, "providers": ["deepseek"] }` |
-| `POST` | `/v1/provider` | `{}` or `{ "id": "deepseek" }` | provider metadata with `capabilities` and `models` |
-| `POST` | `/v1/search` | `{ "provider"?, "query", "count"?, "need_content"?, "ori_question"? }` | `{ "provider", "sources": [...], "warnings": [] }` |
+| `POST` | `/v1/provider` | `{}` or `{ "id": "deepseek" }` | provider identity: `{ "id", "name", "enabled" }` |
+| `POST` | `/v1/search` | `{ "provider"?, "query", "count"?, "need_content"?, "ori_question"? }` | `{ "provider", "sources": [...], "answer"?, "warnings": [] }` |
 | `POST` | `/v1/fetch` | `{ "provider"?, "url" }` | `{ "provider", "page": { "url", "title", "content" }, "warnings": [] }` |
 
 `provider` is optional and defaults to `auto`. API Gateway stage prefixes such as `/release/v1/search` are accepted.
 
-Canonical source fields: `url`, `title`, `content` (Markdown), `published_at` (UTC RFC 3339 or `null`), `authority` (`-1..4`), `score` (`0..1`), `site_name`.
+Both `search` and `fetch` call the provider's **model API with server-side web tools**, not standalone Search & Fetch REST endpoints. `search` uses DeepSeek `deepseek_web_search`; `fetch` uses `deepseek_read_url`. Canonical source fields: `url`, `title`, `content` (snippet or model-generated text, not raw Markdown), `published_at` (UTC RFC 3339 or `null`), `authority` (`-1..4`), `score` (`0..1`), `site_name`. Responses carry `warnings: ["model_generated_content"]` so callers can label the evidence correctly.
+
+Contract guarantees: `search` provides discovery plus source summaries; `fetch` returns usable plaintext generated from the original page, with citations. Model `citations` (`url` / `title` / `cited_text`) are kept as a `citations` array and appended as a plaintext `Sources:` section so downstream agents can resolve `[N]` markers. If the model did not actually read the URL, `fetch` returns `fetch_failed` instead of unverifiable text.
 
 Errors use stable codes in `{ "error": { "code", "message" } }`: `auth`, `invalid_params`, `provider_unavailable`, `rate_limit`, `no_results`, `timeout`, `fetch_failed`, `transport`, `internal`.
 
 ## Providers
 
-| id | capabilities | status |
-| --- | --- | --- |
-| `deepseek` | `search`, `fetch` | enabled when its provider settings are configured |
-| `tencent-tokenplan` | `search` | planned: Anthropic Messages `web_search_20250305`; fetch composed with DeepSeek |
-| `opencode-go` | `model`, `synthesis` | planned: no verified native search endpoint |
+| id | status |
+| --- | --- |
+| `deepseek` | enabled when its provider settings are configured |
+| `tencent-tokenplan` | planned: Anthropic Messages `web_search_20250305`; fetch composed with DeepSeek |
+| `opencode-go` | planned: no verified native search endpoint |
+
+Providers are selected by id. Model choice is internal to each adapter (provider default or `auto` route); no model is configured or exposed here. Adding a model never adds a variable.
 
 ## Configuration
 
@@ -39,13 +43,12 @@ Environment variables only; no secret is written to a file.
 | --- | --- |
 | `GATEWAY_TOKEN` or `GATEWAY_TOKENS` | required comma-separated bearer tokens for `/v1/*` |
 | `GATEWAY_PROVIDERS` | optional provider id allowlist for all tokens |
-| `PROVIDER_CONFIG` | JSON map of provider id → `{ "apiKey", "baseUrl" }`; preferred when configuring several providers |
-| `PROVIDER_<ID>_API_KEY` | convention form, e.g. `PROVIDER_DEEPSEEK_API_KEY` |
-| `PROVIDER_<ID>_BASE_URL` | optional, e.g. `PROVIDER_DEEPSEEK_BASE_URL` |
+| `PROVIDER_<ID>_API_KEY` | key for a provider, e.g. `PROVIDER_DEEPSEEK_API_KEY` |
+| `PROVIDER_<ID>_BASE_URL` | optional endpoint override, e.g. `PROVIDER_DEEPSEEK_BASE_URL` |
 | `PROVIDER_ORDER` | `auto` order; defaults to `deepseek` (legacy alias `SEARCH_PROVIDER_ORDER` still accepted) |
-
-No top-level variable names a specific vendor. Adding a backend means giving it an id and adding settings under that id; the gateway code and client contract stay unchanged.
 | `PORT` | local dev port; defaults to `3000` |
+
+Only one form exists: one variable pair per provider. The provider id (`DEEPSEEK`, `TENCENT_TOKENPLAN`, …) is the only vendor-specific part, so adding a backend just means setting its variables. No top-level variable names a specific vendor, and no variable names a specific model.
 
 ## Run and test
 
